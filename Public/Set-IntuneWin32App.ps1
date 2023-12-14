@@ -39,6 +39,9 @@ function Set-IntuneWin32App {
     .PARAMETER CompanyPortalFeaturedApp
         Specify whether to have the Win32 application featured in Company Portal or not.
 
+    .PARAMETER DetectionRule
+        Provide an array of a single or multiple OrderedDictionary objects as detection rules that will be used for the Win32 application.
+
     .NOTES
         Author:      Nickolaj Andersen
         Contact:     @NickolajA
@@ -97,6 +100,9 @@ function Set-IntuneWin32App {
 
         [parameter(Mandatory = $false, HelpMessage = "Specify whether to allow the Win32 application to be uninstalled from the Company Portal app when assigned as available.")]
         [bool]$AllowAvailableUninstall
+
+        [parameter(Mandatory = $false, HelpMessage = "Provide an array of a single or multiple OrderedDictionary objects as detection rules that will be used for the Win32 application.")]
+        [System.Collections.Specialized.OrderedDictionary[]]$DetectionRule,
     )
     Begin {
         # Ensure required authentication header variable exists
@@ -157,6 +163,17 @@ function Set-IntuneWin32App {
             }
             if ($PSBoundParameters["AllowAvailableUninstall"]) {
                 $Win32AppBody.Add("allowAvailableUninstall", $AllowAvailableUninstall)
+            }
+
+            if ($PSBoundParameters["DetectionRule"]) {
+                # Validate that correct detection rules have been passed on command line, only 1 PowerShell script based detection rule is allowed
+                if (($DetectionRule.'@odata.type' -contains "#microsoft.graph.win32LobAppPowerShellScriptDetection") -and (@($DetectionRules).'@odata.type'.Count -gt 1)) {
+                    Write-Warning -Message "Multiple PowerShell Script detection rules were detected, this is not a supported configuration"; break
+                }
+               
+                # Add detection rules to Win32 app body object
+                Write-Verbose -Message "Detection rule objects passed validation checks, attempting to add to existing Win32 app body"
+                $Win32AppBody.Add("detectionRules", $DetectionRule)
             }
 
             try {
